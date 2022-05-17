@@ -12,10 +12,10 @@ public class Window extends JFrame {
         this.setSize(WINDOW_WIDTH,WINDOW_HEIGHT);
         this.setResizable(false);
         this.setLocationRelativeTo(null);
-        this.setVisible(true);
 
         WebScrapping webScrapping = new WebScrapping(0,0,WINDOW_WIDTH,WINDOW_HEIGHT);
         this.add(webScrapping);
+        this.setVisible(true);
 
     }
 

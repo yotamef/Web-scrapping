@@ -46,18 +46,22 @@ public class WebScrapping extends JPanel {
             ignore.setVisible(false);
             String[] ignoreList = userIgnoreList.getText().split(",");
 
-            while (true) {
-                scrape(merged, ignoreList, labels);
-                while (!labels.isEmpty()) {
-                    this.add(labels.getFirst());
-                    labels.removeFirst();
-                }
-                try {
-                    Thread.sleep(100000);
-                } catch (Exception e) {
+            new Thread(() -> {
+                while (true) {
+                    scrape(merged, ignoreList, labels);
+                    this.removeAll();
+                    while (!labels.isEmpty()) {
+                        this.add(labels.getFirst());
+                        repaint();
+                        labels.removeFirst();
+                    }
+                    try {
+                        Thread.sleep(10000);
+                    } catch (Exception e) {
 
+                    }
                 }
-            }
+            }).start();
 
         });
     }
@@ -69,6 +73,7 @@ public class WebScrapping extends JPanel {
         Map<String, Integer> sport5Map = new HashMap<>();
         Map<String, Integer> temp = new HashMap<>();
         Map<String, Integer> trends = new HashMap<>();
+        Map<String, Integer> mergeStepOne = new HashMap<>();
 
         LinkedList<Thread> news1Threads = new LinkedList<>();
         LinkedList<Thread> news2Threads = new LinkedList<>();
@@ -76,10 +81,11 @@ public class WebScrapping extends JPanel {
 
 
         if (!merged.isEmpty()) {
-            temp = copyMap(merged);
+            copyMap(merged,temp);
         }
 
         merged.clear();
+        mergeStepOne.clear();
         labels.clear();
 
         try {
@@ -202,7 +208,8 @@ public class WebScrapping extends JPanel {
         wait(news2Threads);
         wait(sportThreads);
 
-        merged = mergeMaps(mergeMaps(makoMap, sport5Map), ynetMap);
+        mergeMaps(makoMap,sport5Map,mergeStepOne);
+        mergeMaps(sport5Map,mergeStepOne,merged);
 
         Map<String, Integer> top10Mako = get10Big(makoMap);
         Map<String, Integer> top10Ynet = get10Big(ynetMap);
@@ -212,12 +219,21 @@ public class WebScrapping extends JPanel {
         if (!temp.isEmpty()) {
             int count = 0;
             for (String key : merged.keySet()) {
-                count = merged.get(key) - temp.get(key);
-                trends.put(key, count);
+                if (temp.get(key)!=null) {
+                    count = merged.get(key) - temp.get(key);
+                } else {
+                    count = merged.get(key);
+                }
+                if (count>0) {
+                    trends.put(key, count);
+                }
+                System.out.println("good "+ key+" "+ count);
             }
-            Map<String, Integer> top10Trends = get10Big(trends);
-            printToGUI(top10Trends,400,labels,"top trends:");
-            printToConsole(top10Trends, "trends:");
+            if (!trends.isEmpty()) {
+                Map<String, Integer> top10Trends = get10Big(trends);
+                printToGUI(top10Trends, 400, labels, "top trends:");
+            }
+//            printToConsole(top10Trends, "trends:");
         }
 
 
@@ -226,10 +242,10 @@ public class WebScrapping extends JPanel {
         printToGUI(top10Ynet, 200, labels, "top 10 (ynet):");
         printToGUI(top10Sport5, 300, labels, "top 10 (sport5)");
         
-        printToConsole(top10OfAll,"top 10:");
-        printToConsole(top10Mako, "top 10 (mako)");
-        printToConsole(top10Sport5, "top 10 (sport 5)");
-        printToConsole(top10Ynet, "top 10 (ynet)");
+//        printToConsole(top10OfAll,"top 10:");
+//        printToConsole(top10Mako, "top 10 (mako)");
+//        printToConsole(top10Sport5, "top 10 (sport 5)");
+//        printToConsole(top10Ynet, "top 10 (ynet)");
 
 
         System.out.println("done");
@@ -238,6 +254,17 @@ public class WebScrapping extends JPanel {
         
 
     }
+//    private boolean haKeys(Map<String, Integer> map) {
+//        boolean hasKeys = false;
+//        for (String key: map.keySet()) {
+//            if (!key.equals("")) {
+//                if (map.get(key)!= null) {
+//                    hasKeys = true;
+//                }
+//            }
+//        }
+//        return hasKeys;
+//    }
 
     public void printToConsole(Map<String, Integer> map, String headLine) {
         System.out.println(headLine);
@@ -258,17 +285,23 @@ public class WebScrapping extends JPanel {
         headLineLabel.setBounds(x, 0, LABELS_WIDTH, LABELS_HEIGHT);
         headLineLabel.setVisible(true);
         labels.addFirst(headLineLabel);
+        System.out.println(headLine);
 
         int height = LABELS_HEIGHT;
         while (!map.isEmpty()) {
             String key = maxKeyMap(map);
-            JLabel label = new JLabel(key + ": " + map.get(key) + " times");
-            label.setVisible(true);
-            label.setBounds(x,height,LABELS_WIDTH,LABELS_HEIGHT);
-            labels.addFirst(label);
-            height += 30;
-            map.remove(key);
+            if(map.get(key)!=null) {
+                JLabel label = new JLabel(key + ": " + map.get(key) + " times");
+                System.out.println(label.getText());
+                label.setVisible(true);
+                label.setBounds(x, height, LABELS_WIDTH, LABELS_HEIGHT);
+                this.add(label);
+                labels.addFirst(label);
+                height += 30;
+                map.remove(key);
+            }
         }
+        System.out.println();
     }
 
     public Map<String, Integer> get10Big(Map<String, Integer> map) {
@@ -330,22 +363,21 @@ public class WebScrapping extends JPanel {
         return exist;
     }
 
-    public Map<String,Integer> mergeMaps(Map<String, Integer> map1, Map<String, Integer> map2) {
-        Map <String,Integer> toReturn;
-        toReturn = copyMap(map2);
+    public void mergeMaps(Map<String, Integer> map1, Map<String, Integer> map2, Map<String,Integer> result) {
+
+        copyMap(map2,result);
 
         for (String key: map1.keySet()) {
-            toReturn.merge(key,map1.get(key),(v1,v2)->(v1+v2));
+            result.merge(key,map1.get(key),(v1,v2)->(v1+v2));
         }
 
-        return toReturn;
     }
 
-    public Map<String, Integer> copyMap(Map<String , Integer> map) {
-        Map<String, Integer> copyMap = new HashMap<>();
+    public void copyMap(Map<String , Integer> map, Map<String, Integer> result) {
+
         for (String key : map.keySet()) {
-            copyMap.put(key, map.get(key));
+            result.put(key, map.get(key));
         }
-        return copyMap;
+
     }
 }
