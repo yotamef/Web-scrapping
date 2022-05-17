@@ -56,7 +56,7 @@ public class WebScrapping extends JPanel {
                         labels.removeFirst();
                     }
                     try {
-                        Thread.sleep(10000);
+                        Thread.sleep(600000);
                     } catch (Exception e) {
 
                     }
